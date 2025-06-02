@@ -1,2 +1,2 @@
 # Rave-Streaming-App
-A Music Streaming Application powered  by Flutter
+A Web Based Music Streaming Application powered React
