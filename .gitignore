@@ -43,3 +43,5 @@ Primary-Server/.pnpm-debug.log*
 Primary-Server/.vercel
 Primary-Server/*.tsbuildinfo
 Primary-Server/next-env.d.ts
+
+*.DS_Store
