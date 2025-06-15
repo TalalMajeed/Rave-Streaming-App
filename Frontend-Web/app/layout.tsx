@@ -10,7 +10,16 @@ export const metadata: Metadata = {
     title: "Rave - Your Music Streaming Platform",
     description: "Discover, stream, and enjoy your favorite music with Rave",
     icons: {
-        icon: "/rave-logo.png",
+        icon: [
+            {
+                url: "/rave-dark.png",
+                media: "(prefers-color-scheme: light)",
+            },
+            {
+                url: "/rave-logo.png",
+                media: "(prefers-color-scheme: dark)",
+            },
+        ],
     },
 };
 
