@@ -45,3 +45,9 @@ Primary-Server/*.tsbuildinfo
 Primary-Server/next-env.d.ts
 
 *.DS_Store
+*.env.development
+*.env.production
+*.env.test
+*.env.development.local
+*.env.production.local
+*.env.test.local
