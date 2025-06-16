@@ -2,11 +2,12 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { IUser } from "../models/User";
 
-// Extend Express Request type to include user
 declare global {
     namespace Express {
         interface Request {
-            user?: IUser;
+            user?: {
+                _id: string;
+            };
         }
     }
 }
@@ -23,7 +24,7 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
             token,
             process.env.JWT_SECRET || "your-secret-key"
         ) as { _id: string };
-        req.user = { _id: decoded._id } as IUser;
+        req.user = { _id: decoded._id };
 
         next();
     } catch (error) {

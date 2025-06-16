@@ -29,7 +29,10 @@ router.post("/login", async (req, res) => {
 // Get user profile
 router.get("/profile", auth, async (req, res) => {
     try {
-        const user = await userService.getUserById(req.user!._id);
+        if (!req.user?._id) {
+            return res.status(401).json({ error: "User not authenticated" });
+        }
+        const user = await userService.getUserById(req.user._id);
         res.json(user);
     } catch (error) {
         res.status(500).json({ error: (error as Error).message });
@@ -39,7 +42,10 @@ router.get("/profile", auth, async (req, res) => {
 // Update user profile
 router.patch("/profile", auth, async (req, res) => {
     try {
-        const user = await userService.updateUser(req.user!._id, req.body);
+        if (!req.user?._id) {
+            return res.status(401).json({ error: "User not authenticated" });
+        }
+        const user = await userService.updateUser(req.user._id, req.body);
         res.json(user);
     } catch (error) {
         res.status(400).json({ error: (error as Error).message });
@@ -49,7 +55,10 @@ router.patch("/profile", auth, async (req, res) => {
 // Delete user account
 router.delete("/profile", auth, async (req, res) => {
     try {
-        const user = await userService.deleteUser(req.user!._id);
+        if (!req.user?._id) {
+            return res.status(401).json({ error: "User not authenticated" });
+        }
+        const user = await userService.deleteUser(req.user._id);
         res.json(user);
     } catch (error) {
         res.status(500).json({ error: (error as Error).message });
