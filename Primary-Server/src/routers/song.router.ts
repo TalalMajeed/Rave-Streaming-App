@@ -15,20 +15,6 @@ router.get("/", async (req, res) => {
     }
 });
 
-// Search songs
-router.get("/search", async (req, res) => {
-    try {
-        const { q } = req.query;
-        if (!q || typeof q !== "string") {
-            return res.status(400).json({ error: "Search query is required" });
-        }
-        const songs = await songService.searchSongs(q);
-        res.json(songs);
-    } catch (error) {
-        res.status(500).json({ error: (error as Error).message });
-    }
-});
-
 // Get song by ID
 router.get("/:id", async (req, res) => {
     try {
@@ -42,29 +28,6 @@ router.get("/:id", async (req, res) => {
     }
 });
 
-// Create new song (protected route)
-router.post("/", auth, async (req, res) => {
-    try {
-        const song = await songService.createSong(req.body);
-        res.status(201).json(song);
-    } catch (error) {
-        res.status(400).json({ error: (error as Error).message });
-    }
-});
-
-// Update song (protected route)
-router.patch("/:id", auth, async (req, res) => {
-    try {
-        const song = await songService.updateSong(req.params.id, req.body);
-        if (!song) {
-            return res.status(404).json({ error: "Song not found" });
-        }
-        res.json(song);
-    } catch (error) {
-        res.status(400).json({ error: (error as Error).message });
-    }
-});
-
 // Delete song (protected route)
 router.delete("/:id", auth, async (req, res) => {
     try {
@@ -73,6 +36,31 @@ router.delete("/:id", auth, async (req, res) => {
             return res.status(404).json({ error: "Song not found" });
         }
         res.json(song);
+    } catch (error) {
+        res.status(500).json({ error: (error as Error).message });
+    }
+});
+
+// Search JioSaavn songs
+router.get("/search/", async (req, res) => {
+    try {
+        const { query } = req.query;
+        if (!query || typeof query !== "string") {
+            return res.status(400).json({ error: "Search query is required" });
+        }
+        const songs = await songService.searchWebSongs(query);
+        res.json(songs);
+    } catch (error) {
+        res.status(500).json({ error: (error as Error).message });
+    }
+});
+
+// Get JioSaavn song URL
+router.get("/play/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const songUrl = await songService.playWebSongs(id);
+        res.json({ url: songUrl });
     } catch (error) {
         res.status(500).json({ error: (error as Error).message });
     }
