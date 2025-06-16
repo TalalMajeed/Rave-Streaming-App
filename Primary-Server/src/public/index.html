@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Rave Streaming API</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                    Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
+                    "Helvetica Neue", sans-serif;
+            }
+
+            body {
+                background-color: #000000;
+                color: #ffffff;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 2rem;
+            }
+
+            .container {
+                text-align: center;
+                max-width: 800px;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+                margin-bottom: 1rem;
+                color: #4ecdc4;
+            }
+
+            p {
+                font-size: 1.1rem;
+                line-height: 1.6;
+                color: #b3b3b3;
+                margin-bottom: 2rem;
+            }
+
+            .endpoints {
+                background: rgba(255, 255, 255, 0.05);
+                padding: 2rem;
+                border-radius: 8px;
+                text-align: left;
+                margin-top: 2rem;
+            }
+
+            .endpoint {
+                margin-bottom: 1rem;
+                padding: 1rem;
+                border-left: 3px solid #4ecdc4;
+            }
+
+            .method {
+                color: #4ecdc4;
+                font-weight: bold;
+            }
+
+            .path {
+                color: #ffffff;
+                font-family: monospace;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Rave Streaming API</h1>
+            <p>
+                Welcome to the Rave Streaming API. This API provides endpoints
+                for managing music streaming, user authentication, and real-time
+                synchronization.
+            </p>
+
+            <div class="endpoints">
+                <div class="endpoint">
+                    <span class="method">GET</span>
+                    <span class="path">/api/status</span>
+                    <p>Check API status and health</p>
+                </div>
+                <div class="endpoint">
+                    <span class="method">POST</span>
+                    <span class="path">/api/auth/login</span>
+                    <p>User authentication endpoint</p>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
