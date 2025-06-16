@@ -1,7 +1,7 @@
 {
     "name": "rave-backend",
     "version": "1.0.0",
-    "description": "Primary server for Rave Streaming App",
+    "description": "Primary API Rave Streaming App",
     "main": "dist/main.js",
     "scripts": {
         "start": "NODE_ENV=production nodemon",
