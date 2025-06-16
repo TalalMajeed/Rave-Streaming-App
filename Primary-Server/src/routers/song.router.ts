@@ -15,6 +15,30 @@ router.get("/", async (req, res) => {
     }
 });
 
+// Search JioSaavn songs
+router.get("/search", async (req, res) => {
+    try {
+        const { query } = req.query;
+        if (!query || typeof query !== "string") {
+            return res.status(400).json({ error: "Search query is required" });
+        }
+        const songs = await songService.searchWebSongs(query);
+        res.json(songs);
+    } catch (error) {
+        res.status(500).json({ error: (error as Error).message });
+    }
+});
+
+router.get("/play/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const songUrl = await songService.playWebSongs(id);
+        res.json({ url: songUrl });
+    } catch (error) {
+        res.status(500).json({ error: (error as Error).message });
+    }
+});
+
 // Get song by ID
 router.get("/:id", async (req, res) => {
     try {
@@ -40,30 +64,4 @@ router.delete("/:id", auth, async (req, res) => {
         res.status(500).json({ error: (error as Error).message });
     }
 });
-
-// Search JioSaavn songs
-router.get("/search/", async (req, res) => {
-    try {
-        const { query } = req.query;
-        if (!query || typeof query !== "string") {
-            return res.status(400).json({ error: "Search query is required" });
-        }
-        const songs = await songService.searchWebSongs(query);
-        res.json(songs);
-    } catch (error) {
-        res.status(500).json({ error: (error as Error).message });
-    }
-});
-
-// Get JioSaavn song URL
-router.get("/play/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-        const songUrl = await songService.playWebSongs(id);
-        res.json({ url: songUrl });
-    } catch (error) {
-        res.status(500).json({ error: (error as Error).message });
-    }
-});
-
 export default router;
