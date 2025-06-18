@@ -8,9 +8,10 @@ import {
     Heart,
     Plus,
     Music,
+    LogOut,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "./logo";
 import {
     Sidebar,
@@ -25,6 +26,7 @@ import {
     SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { useUser } from "@/contexts/UserContext";
 
 const navigation = [
     {
@@ -53,6 +55,13 @@ const playlists = [
 
 export function AppSidebar() {
     const pathname = usePathname();
+    const router = useRouter();
+    const { logout } = useUser();
+
+    const handleLogout = () => {
+        logout();
+        router.push("/");
+    };
 
     return (
         <Sidebar className="border-r border-rave-dark-border">
@@ -144,6 +153,14 @@ export function AppSidebar() {
                         Settings
                     </Button>
                 </Link>
+                <Button
+                    variant="ghost"
+                    className="w-full justify-start text-gray-300 hover:text-white"
+                    onClick={handleLogout}
+                >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                </Button>
             </SidebarFooter>
         </Sidebar>
     );
