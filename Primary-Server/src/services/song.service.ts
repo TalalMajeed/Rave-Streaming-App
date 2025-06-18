@@ -56,7 +56,7 @@ export class SongService {
                 return [];
             }
 
-            return data.songs.data.map((song: any) => ({
+            const songs = data.songs.data.map((song: any) => ({
                 id: song.id,
                 name: song.title.replace(/&quot;/g, '"').replace(/&amp;/g, "&"),
                 album: song.album
@@ -68,9 +68,48 @@ export class SongService {
                 image: song.image,
                 duration: song.more_info.duration,
             }));
+
+            // Save each song to database if it doesn't exist
+            for (const song of songs) {
+                await this.saveWebSongToDatabase(song);
+            }
+
+            return songs;
         } catch (error) {
             console.error("Error searching JioSaavn:", error);
             return [];
+        }
+    }
+
+    private async saveWebSongToDatabase(songData: {
+        id: string;
+        name: string;
+        album: string;
+        artist: string;
+        image: string;
+        duration: string;
+    }): Promise<void> {
+        try {
+            // Check if song already exists by webId
+            const existingSong = await Song.findOne({ webId: songData.id });
+
+            if (!existingSong) {
+                // Create new song in database
+                const newSong = new Song({
+                    name: songData.name,
+                    artist: songData.artist,
+                    photo: songData.image,
+                    webId: songData.id,
+                });
+
+                await newSong.save();
+                console.log(`Saved new song to database: ${songData.name}`);
+            }
+        } catch (error) {
+            console.error(
+                `Error saving song ${songData.name} to database:`,
+                error
+            );
         }
     }
 
@@ -86,7 +125,12 @@ export class SongService {
             }
 
             const encryptedUrl = data[songId].encrypted_media_url;
-            return this.decryptUrl(encryptedUrl);
+            const decryptedUrl = this.decryptUrl(encryptedUrl);
+
+            // Save the media URL to the corresponding song document if it exists
+            await this.updateSongMediaUrl(songId, decryptedUrl);
+
+            return decryptedUrl;
         } catch (error) {
             console.error("Error getting JioSaavn song URL:", error);
             throw error;
@@ -105,5 +149,30 @@ export class SongService {
         decipher.finish();
 
         return decipher.output.getBytes();
+    }
+
+    private async updateSongMediaUrl(
+        webId: string,
+        mediaUrl: string
+    ): Promise<void> {
+        try {
+            // Find the song by webId and update its media field
+            const updatedSong = await Song.findOneAndUpdate(
+                { webId: webId },
+                { media: mediaUrl },
+                { new: true }
+            );
+
+            if (updatedSong) {
+                console.log(`Updated media URL for song: ${updatedSong.name}`);
+            } else {
+                console.log(`Song with webId ${webId} not found in database`);
+            }
+        } catch (error) {
+            console.error(
+                `Error updating media URL for song with webId ${webId}:`,
+                error
+            );
+        }
     }
 }
