@@ -4,7 +4,8 @@ export interface ISong extends Document {
     name: string;
     artist: string;
     photo: string;
-    media: string;
+    media?: string;
+    webId?: string;
 }
 
 const SongSchema: Schema = new Schema(
@@ -25,7 +26,12 @@ const SongSchema: Schema = new Schema(
         },
         media: {
             type: String,
-            required: true,
+            required: false,
+        },
+        webId: {
+            type: String,
+            unique: true,
+            sparse: true,
         },
     },
     {
