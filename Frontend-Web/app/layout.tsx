@@ -5,6 +5,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "sonner";
 import { UserProvider } from "@/contexts/UserContext";
+import { SongQueueProvider } from "@/contexts/SongQueueContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -40,8 +41,14 @@ export default function RootLayout({
                     disableTransitionOnChange
                 >
                     <UserProvider>
-                        {children}
-                        <Toaster position="top-right" richColors closeButton />
+                        <SongQueueProvider>
+                            {children}
+                            <Toaster
+                                position="top-right"
+                                richColors
+                                closeButton
+                            />
+                        </SongQueueProvider>
                     </UserProvider>
                 </ThemeProvider>
             </body>

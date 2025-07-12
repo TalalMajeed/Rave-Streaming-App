@@ -7,13 +7,17 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     return (
         <ProtectedRoute>
-            <div className="min-h-screen bg-rave-dark-bg">
+            <div className="min-h-screen bg-rave-dark-bg flex flex-col">
                 <SidebarProvider>
-                    <AppSidebar />
-                    <SidebarInset className="pb-24">
-                        <main className="flex-1">{children}</main>
-                    </SidebarInset>
-                    <MusicPlayer />
+                    <div className="flex flex-1">
+                        <AppSidebar />
+                        <SidebarInset className="flex-1 flex flex-col">
+                            <main className="flex-1 overflow-auto">
+                                {children}
+                            </main>
+                            <MusicPlayer />
+                        </SidebarInset>
+                    </div>
                 </SidebarProvider>
             </div>
         </ProtectedRoute>

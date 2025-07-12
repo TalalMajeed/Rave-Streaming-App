@@ -89,7 +89,7 @@ export default function LoginPage() {
                             id="email"
                             name="email"
                             type="email"
-                            placeholder="name@example.com"
+                            placeholder="Enter your email"
                             required
                             value={formData.email}
                             onChange={handleChange}
@@ -112,7 +112,7 @@ export default function LoginPage() {
                             id="password"
                             name="password"
                             type="password"
-                            placeholder="••••••••"
+                            placeholder="Enter your password"
                             required
                             value={formData.password}
                             onChange={handleChange}
