@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Search, Play, MoreHorizontal, Heart } from "lucide-react";
 import Image from "next/image";
 import { apiService, Song } from "@/lib/api";
+import { useSongQueue } from "@/contexts/SongQueueContext";
 
 export default function AppPage() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -14,6 +15,7 @@ export default function AppPage() {
     const [loading, setLoading] = useState(false);
     const [debouncedQuery, setDebouncedQuery] = useState("");
     const [isTyping, setIsTyping] = useState(false);
+    const { playSongById, currentSong, state } = useSongQueue();
 
     // Debounce search query
     useEffect(() => {
@@ -122,6 +124,12 @@ export default function AppPage() {
                                                     size="sm"
                                                     variant="ghost"
                                                     className="text-gray-400 hover:text-white"
+                                                    onClick={() =>
+                                                        playSongById(
+                                                            song.id,
+                                                            song
+                                                        )
+                                                    }
                                                 >
                                                     <Play className="h-4 w-4" />
                                                 </Button>

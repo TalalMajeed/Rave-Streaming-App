@@ -121,6 +121,10 @@ class ApiService {
             `/api/songs/search?query=${encodeURIComponent(query)}`
         );
     }
+
+    async getSongUrl(songId: string): Promise<{ url: string }> {
+        return this.request<{ url: string }>(`/api/songs/play/${songId}`);
+    }
 }
 
 export const apiService = new ApiService();

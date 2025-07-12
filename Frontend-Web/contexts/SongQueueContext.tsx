@@ -1,7 +1,15 @@
 "use client";
 
-import React, { createContext, useContext, useReducer, ReactNode } from "react";
+import React, {
+    createContext,
+    useContext,
+    useReducer,
+    ReactNode,
+    useRef,
+    useEffect,
+} from "react";
 import { Song } from "@/lib/api";
+import { apiService } from "@/lib/api";
 
 // Types
 export interface AudioControls {
@@ -16,6 +24,7 @@ interface SongQueueState {
     queue: Song[];
     currentIndex: number;
     controls: AudioControls;
+    currentAudioUrl: string | null;
 }
 
 // Actions
@@ -31,6 +40,7 @@ type SongQueueAction =
     | { type: "SET_DURATION"; payload: number }
     | { type: "SET_IS_PLAYING"; payload: boolean }
     | { type: "SET_IS_MUTED"; payload: boolean }
+    | { type: "SET_CURRENT_AUDIO_URL"; payload: string | null }
     | {
           type: "REORDER_QUEUE";
           payload: { fromIndex: number; toIndex: number };
@@ -47,6 +57,7 @@ const initialState: SongQueueState = {
         isPlaying: false,
         isMuted: false,
     },
+    currentAudioUrl: null,
 };
 
 // Reducer
@@ -87,6 +98,7 @@ function songQueueReducer(
                     isPlaying: false,
                     currentTime: 0,
                 },
+                currentAudioUrl: null,
             };
 
         case "PLAY_NEXT":
@@ -176,6 +188,12 @@ function songQueueReducer(
                 },
             };
 
+        case "SET_CURRENT_AUDIO_URL":
+            return {
+                ...state,
+                currentAudioUrl: action.payload,
+            };
+
         case "REORDER_QUEUE":
             const { fromIndex, toIndex } = action.payload;
             if (
@@ -230,6 +248,7 @@ interface SongQueueContextType {
     playNext: () => void;
     playPrevious: () => void;
     setCurrentIndex: (index: number) => void;
+    playSongById: (songId: string, song?: Song) => Promise<void>;
 
     // Audio controls
     setVolume: (volume: number) => void;
@@ -237,6 +256,7 @@ interface SongQueueContextType {
     setDuration: (duration: number) => void;
     setIsPlaying: (isPlaying: boolean) => void;
     setIsMuted: (isMuted: boolean) => void;
+    setCurrentAudioUrl: (url: string | null) => void;
 
     // Computed values
     currentSong: Song | null;
@@ -256,6 +276,103 @@ interface SongQueueProviderProps {
 
 export function SongQueueProvider({ children }: SongQueueProviderProps) {
     const [state, dispatch] = useReducer(songQueueReducer, initialState);
+    const audioRef = useRef<HTMLAudioElement>(null);
+
+    // Audio event handlers
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        const handleTimeUpdate = () => {
+            setCurrentTime(audio.currentTime);
+        };
+
+        const handleLoadedMetadata = () => {
+            setDuration(audio.duration);
+        };
+
+        const handleEnded = () => {
+            setIsPlaying(false);
+            playNext();
+        };
+
+        const handleVolumeChange = () => {
+            setVolume(audio.volume);
+        };
+
+        audio.addEventListener("timeupdate", handleTimeUpdate);
+        audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+        audio.addEventListener("ended", handleEnded);
+        audio.addEventListener("volumechange", handleVolumeChange);
+
+        return () => {
+            audio.removeEventListener("timeupdate", handleTimeUpdate);
+            audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+            audio.removeEventListener("ended", handleEnded);
+            audio.removeEventListener("volumechange", handleVolumeChange);
+        };
+    }, []);
+
+    // Update audio element when controls change
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        if (state.controls.isPlaying) {
+            audio.play().catch(console.error);
+        } else {
+            audio.pause();
+        }
+    }, [state.controls.isPlaying]);
+
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        audio.volume = state.controls.volume;
+    }, [state.controls.volume]);
+
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        audio.muted = state.controls.isMuted;
+    }, [state.controls.isMuted]);
+
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio || !state.currentAudioUrl) return;
+
+        audio.src = state.currentAudioUrl;
+        audio.load();
+    }, [state.currentAudioUrl]);
+
+    // Play song by ID
+    const playSongById = async (songId: string, song?: Song) => {
+        try {
+            const response = await apiService.getSongUrl(songId);
+            setCurrentAudioUrl(response.url);
+
+            // Find the song in the queue or add it
+            const songIndex = state.queue.findIndex((s) => s.id === songId);
+            if (songIndex === -1) {
+                // Song not in queue, add it if we have the song data
+                if (song) {
+                    addToQueue(song);
+                    // The song will be set as current by addToQueue
+                } else {
+                    // Just play without adding to queue
+                    setIsPlaying(true);
+                }
+            } else {
+                // Song is in queue, set it as current
+                setCurrentIndex(songIndex);
+                setIsPlaying(true);
+            }
+        } catch (error) {
+            console.error("Error playing song:", error);
+        }
+    };
 
     // Queue management functions
     const addToQueue = (song: Song) => {
@@ -308,6 +425,10 @@ export function SongQueueProvider({ children }: SongQueueProviderProps) {
         dispatch({ type: "SET_IS_MUTED", payload: isMuted });
     };
 
+    const setCurrentAudioUrl = (url: string | null) => {
+        dispatch({ type: "SET_CURRENT_AUDIO_URL", payload: url });
+    };
+
     // Computed values
     const currentSong =
         state.currentIndex >= 0 && state.currentIndex < state.queue.length
@@ -327,11 +448,13 @@ export function SongQueueProvider({ children }: SongQueueProviderProps) {
         playNext,
         playPrevious,
         setCurrentIndex,
+        playSongById,
         setVolume,
         setCurrentTime,
         setDuration,
         setIsPlaying,
         setIsMuted,
+        setCurrentAudioUrl,
         currentSong,
         hasNext,
         hasPrevious,
@@ -341,6 +464,7 @@ export function SongQueueProvider({ children }: SongQueueProviderProps) {
     return (
         <SongQueueContext.Provider value={value}>
             {children}
+            <audio ref={audioRef} />
         </SongQueueContext.Provider>
     );
 }
