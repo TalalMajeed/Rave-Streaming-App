@@ -20,6 +20,14 @@ export interface AuthResponse {
     token: string;
 }
 
+export interface Song {
+    id: string;
+    name: string;
+    album: string;
+    artist: string;
+    image: string;
+}
+
 class ApiService {
     private baseUrl: string;
 
@@ -106,6 +114,12 @@ class ApiService {
         return this.request("/api/users/profile", {
             method: "DELETE",
         });
+    }
+
+    async searchSongs(query: string): Promise<Song[]> {
+        return this.request<Song[]>(
+            `/api/songs/search?query=${encodeURIComponent(query)}`
+        );
     }
 }
 

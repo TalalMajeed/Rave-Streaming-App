@@ -124,7 +124,7 @@ export default function RegisterPage() {
                         <Input
                             id="username"
                             name="username"
-                            placeholder="johndoe"
+                            placeholder="Select your username"
                             required
                             value={formData.username}
                             onChange={handleChange}
@@ -139,7 +139,7 @@ export default function RegisterPage() {
                             id="email"
                             name="email"
                             type="email"
-                            placeholder="name@example.com"
+                            placeholder="Enter your email"
                             required
                             value={formData.email}
                             onChange={handleChange}
@@ -154,7 +154,7 @@ export default function RegisterPage() {
                             id="password"
                             name="password"
                             type="password"
-                            placeholder="••••••••"
+                            placeholder="Enter your password"
                             required
                             value={formData.password}
                             onChange={handleChange}
@@ -177,7 +177,7 @@ export default function RegisterPage() {
                             id="confirmPassword"
                             name="confirmPassword"
                             type="password"
-                            placeholder="••••••••"
+                            placeholder="Confirm your password"
                             required
                             value={formData.confirmPassword}
                             onChange={handleChange}

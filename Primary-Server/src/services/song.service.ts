@@ -65,7 +65,7 @@ export class SongService {
                 artist: song.more_info.primary_artists
                     .replace(/&quot;/g, '"')
                     .replace(/&amp;/g, "&"),
-                image: song.image,
+                image: song.image.replace("50x50", "250x250"),
                 duration: song.more_info.duration,
             }));
 
