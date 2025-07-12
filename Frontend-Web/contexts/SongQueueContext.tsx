@@ -277,6 +277,7 @@ interface SongQueueProviderProps {
 export function SongQueueProvider({ children }: SongQueueProviderProps) {
     const [state, dispatch] = useReducer(songQueueReducer, initialState);
     const audioRef = useRef<HTMLAudioElement>(null);
+    const isUpdatingFromAudio = useRef(false);
 
     // Audio event handlers
     useEffect(() => {
@@ -284,11 +285,20 @@ export function SongQueueProvider({ children }: SongQueueProviderProps) {
         if (!audio) return;
 
         const handleTimeUpdate = () => {
+            isUpdatingFromAudio.current = true;
             setCurrentTime(audio.currentTime);
+            console.log(
+                "Time update:",
+                audio.currentTime,
+                "Duration:",
+                audio.duration
+            );
+            isUpdatingFromAudio.current = false;
         };
 
         const handleLoadedMetadata = () => {
             setDuration(audio.duration);
+            console.log("Loaded metadata - Duration:", audio.duration);
         };
 
         const handleEnded = () => {
@@ -339,10 +349,22 @@ export function SongQueueProvider({ children }: SongQueueProviderProps) {
         audio.muted = state.controls.isMuted;
     }, [state.controls.isMuted]);
 
+    // Update audio currentTime when state changes (from slider)
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio || isUpdatingFromAudio.current) return;
+
+        // Only update if the difference is significant (more than 0.5 seconds)
+        if (Math.abs(audio.currentTime - state.controls.currentTime) > 0.5) {
+            audio.currentTime = state.controls.currentTime;
+        }
+    }, [state.controls.currentTime]);
+
     useEffect(() => {
         const audio = audioRef.current;
         if (!audio || !state.currentAudioUrl) return;
 
+        console.log("Setting audio src:", state.currentAudioUrl);
         audio.src = state.currentAudioUrl;
         audio.load();
     }, [state.currentAudioUrl]);
@@ -464,7 +486,13 @@ export function SongQueueProvider({ children }: SongQueueProviderProps) {
     return (
         <SongQueueContext.Provider value={value}>
             {children}
-            <audio ref={audioRef} />
+            <audio
+                ref={audioRef}
+                controls
+                style={{
+                    display: "none",
+                }}
+            />
         </SongQueueContext.Provider>
     );
 }

@@ -39,7 +39,16 @@ export function MusicPlayer() {
     };
 
     const handleProgressChange = (value: number[]) => {
-        setCurrentTime((value[0] / 100) * state.controls.duration);
+        const newTime = (value[0] / 100) * state.controls.duration;
+        console.log(
+            "Progress change:",
+            value[0],
+            "New time:",
+            newTime,
+            "Duration:",
+            state.controls.duration
+        );
+        setCurrentTime(newTime);
     };
 
     const progressPercentage =
@@ -49,7 +58,8 @@ export function MusicPlayer() {
 
     const volumePercentage = state.controls.volume * 100;
 
-    if (!currentSong) {
+    // Don't render if no song is playing
+    if (!currentSong || !state.currentAudioUrl) {
         return null;
     }
 
