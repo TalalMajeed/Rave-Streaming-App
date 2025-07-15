@@ -1,23 +1,25 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { CreatePlaylistModal } from "@/components/CreatePlaylistModal";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { apiService } from "@/lib/api";
 import {
-    Play,
-    Heart,
-    MoreHorizontal,
-    Search,
-    Plus,
     Clock,
     Download,
-    Grid3X3,
-    List,
     Filter,
+    Grid3X3,
+    Heart,
+    List,
+    MoreHorizontal,
+    Play,
+    Plus,
+    Search,
 } from "lucide-react";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 
 const likedSongs = [
     {
@@ -138,9 +140,51 @@ const downloadedSongs = [
 export default function LibraryPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [playlists, setPlaylists] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const filteredPlaylists = userPlaylists.filter((playlist) =>
-        playlist.title.toLowerCase().includes(searchQuery.toLowerCase())
+    const fetchPlaylists = async () => {
+        setLoading(true);
+        try {
+            const data = await apiService.getUserPlaylists();
+            setPlaylists(data);
+        } catch (err) {
+            setPlaylists([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchPlaylists();
+    }, []);
+
+    const handlePlaylistCreated = () => {
+        setShowCreateModal(false);
+        fetchPlaylists();
+    };
+
+    // Placeholder recommended songs
+    const recommendedSongs = [
+        { id: 101, title: "Recommended Song 1", artist: "Artist A" },
+        { id: 102, title: "Recommended Song 2", artist: "Artist B" },
+        { id: 103, title: "Recommended Song 3", artist: "Artist C" },
+    ];
+
+    const handleSongToggle = (id: number) => {
+        // This function is no longer needed as recommendedSongs is removed
+    };
+
+    const handleCreatePlaylist = () => {
+        // TODO: Connect to backend
+        // For now, just close modal and reset
+        setShowCreateModal(false);
+        // Optionally, show a toast/notification
+    };
+
+    const filteredPlaylists = playlists.filter((playlist) =>
+        playlist.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     return (
@@ -237,27 +281,27 @@ export default function LibraryPage() {
                             <h2 className="text-xl font-semibold text-white">
                                 Your Playlists
                             </h2>
-                            <Button className="bg-rave-accent hover:bg-rave-accent-hover">
+                            <Button className="bg-rave-accent hover:bg-rave-accent-hover" onClick={() => setShowCreateModal(true)}>
                                 <Plus className="h-4 w-4 mr-2" />
                                 Create Playlist
                             </Button>
+                            <CreatePlaylistModal open={showCreateModal} onOpenChange={setShowCreateModal} onCreate={handlePlaylistCreated} />
                         </div>
 
-                        {viewMode === "grid" ? (
+                        {loading ? (
+                            <div className="text-gray-400 text-center py-12">Loading playlists...</div>
+                        ) : viewMode === "grid" ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                 {filteredPlaylists.map((playlist) => (
                                     <Card
-                                        key={playlist.id}
+                                        key={playlist._id}
                                         className="bg-rave-dark-card border-rave-dark-border hover:bg-rave-dark-surface transition-all duration-200 cursor-pointer group"
                                     >
                                         <CardContent className="p-4">
                                             <div className="relative mb-4">
                                                 <Image
-                                                    src={
-                                                        playlist.image ||
-                                                        "/placeholder.svg"
-                                                    }
-                                                    alt={playlist.title}
+                                                    src={playlist.photo || "/placeholder.svg"}
+                                                    alt={playlist.name}
                                                     width={200}
                                                     height={200}
                                                     className="w-full aspect-square object-cover rounded-md"
@@ -270,24 +314,15 @@ export default function LibraryPage() {
                                                 </Button>
                                             </div>
                                             <h3 className="font-semibold text-white mb-1 truncate">
-                                                {playlist.title}
+                                                {playlist.name}
                                             </h3>
                                             <p className="text-gray-400 text-sm mb-2 line-clamp-2">
                                                 {playlist.description}
                                             </p>
                                             <div className="flex items-center justify-between">
                                                 <p className="text-gray-500 text-xs">
-                                                    {playlist.songCount} songs
+                                                    {playlist.songs?.length || 0} songs
                                                 </p>
-                                                {playlist.isOwner && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="text-gray-400 hover:text-white"
-                                                    >
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                )}
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -297,51 +332,29 @@ export default function LibraryPage() {
                             <div className="space-y-2">
                                 {filteredPlaylists.map((playlist) => (
                                     <Card
-                                        key={playlist.id}
+                                        key={playlist._id}
                                         className="bg-rave-dark-card border-rave-dark-border hover:bg-rave-dark-surface transition-colors group"
                                     >
                                         <CardContent className="p-4">
                                             <div className="flex items-center gap-4">
                                                 <div className="relative w-16 h-16 rounded-md overflow-hidden">
                                                     <Image
-                                                        src={
-                                                            playlist.image ||
-                                                            "/placeholder.svg"
-                                                        }
-                                                        alt={playlist.title}
+                                                        src={playlist.photo || "/placeholder.svg"}
+                                                        alt={playlist.name}
                                                         fill
                                                         className="object-cover"
                                                     />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <h3 className="text-white font-medium truncate">
-                                                        {playlist.title}
+                                                        {playlist.name}
                                                     </h3>
                                                     <p className="text-gray-400 text-sm truncate">
                                                         {playlist.description}
                                                     </p>
                                                     <p className="text-gray-500 text-xs">
-                                                        {playlist.songCount}{" "}
-                                                        songs
+                                                        {playlist.songs?.length || 0} songs
                                                     </p>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                        <Play className="h-4 w-4" />
-                                                    </Button>
-                                                    {playlist.isOwner && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            className="text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        >
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </Button>
-                                                    )}
                                                 </div>
                                             </div>
                                         </CardContent>

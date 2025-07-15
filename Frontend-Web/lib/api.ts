@@ -139,6 +139,17 @@ class ApiService {
             body: JSON.stringify({ songId }),
         });
     }
+
+    async createPlaylist(data: { name: string; description?: string; songIds?: string[]; photo?: string }): Promise<any> {
+        return this.request<any>("/api/playlists", {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getUserPlaylists(): Promise<any[]> {
+        return this.request<any[]>("/api/playlists/my-playlists");
+    }
 }
 
 export const apiService = new ApiService();
