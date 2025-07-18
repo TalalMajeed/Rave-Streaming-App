@@ -1,13 +1,31 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Play, MoreHorizontal, Heart } from "lucide-react";
-import Image from "next/image";
-import { apiService, Song } from "@/lib/api";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { useSongQueue } from "@/contexts/SongQueueContext";
+import { apiService, Song } from "@/lib/api";
+import { Heart, MoreHorizontal, Play, Search } from "lucide-react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+
+// For demo, import playlists from library page (in real app, fetch from API)
+const userPlaylists = [
+  { id: "1", title: "My Playlist #1" },
+  { id: "2", title: "Chill Vibes" },
+  { id: "3", title: "Workout Mix" },
+  { id: "4", title: "Road Trip Hits" },
+];
 
 export default function AppPage() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -16,6 +34,7 @@ export default function AppPage() {
     const [debouncedQuery, setDebouncedQuery] = useState("");
     const [isTyping, setIsTyping] = useState(false);
     const { playSongById, currentSong, state } = useSongQueue();
+    const router = useRouter();
 
     // Debounce search query
     useEffect(() => {
@@ -133,13 +152,83 @@ export default function AppPage() {
                                                 >
                                                     <Play className="h-4 w-4" />
                                                 </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="text-gray-400 hover:text-white"
-                                                >
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="text-gray-400 hover:text-white"
+                                                        >
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent>
+                                                        <DropdownMenuSub>
+                                                            <DropdownMenuSubTrigger>
+                                                                Add to Playlist
+                                                            </DropdownMenuSubTrigger>
+                                                            <DropdownMenuSubContent>
+                                                                {userPlaylists.map((playlist) => (
+                                                                    <DropdownMenuItem
+                                                                        key={playlist.id}
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                await apiService.addSongToPlaylist(song.id, playlist.id);
+                                                                                alert(`Added to ${playlist.title}`);
+                                                                            } catch (e) {
+                                                                                alert(`Failed to add to ${playlist.title}`);
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        {playlist.title}
+                                                                    </DropdownMenuItem>
+                                                                ))}
+                                                            </DropdownMenuSubContent>
+                                                        </DropdownMenuSub>
+                                                        <DropdownMenuItem
+                                                            onClick={async () => {
+                                                                try {
+                                                                    await apiService.addToLikedSongs(song.id);
+                                                                    alert("Added to Liked Songs");
+                                                                } catch (e) {
+                                                                    alert("Failed to add to Liked Songs");
+                                                                }
+                                                            }}
+                                                        >
+                                                            Add to Liked Songs
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => {
+                                                                // Go to Album page
+                                                                router.push(`/app/album/${encodeURIComponent(song.album)}`);
+                                                            }}
+                                                        >
+                                                            Go to the Album
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => {
+                                                                // Go to Artist page
+                                                                router.push(`/app/artist/${encodeURIComponent(song.artist)}`);
+                                                            }}
+                                                        >
+                                                            Go to the Artist
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={async () => {
+                                                                // Share song link
+                                                                const shareUrl = `${window.location.origin}/app/song/${song.id}`;
+                                                                try {
+                                                                    await navigator.clipboard.writeText(shareUrl);
+                                                                    alert("Song link copied to clipboard!");
+                                                                } catch (e) {
+                                                                    alert("Failed to copy link");
+                                                                }
+                                                            }}
+                                                        >
+                                                            Share
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </div>
                                         </div>
                                     </CardContent>

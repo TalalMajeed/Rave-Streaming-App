@@ -1,32 +1,34 @@
 "use client";
 
-import {
-    Home,
-    Library,
-    Settings,
-    Search,
-    Heart,
-    Plus,
-    Music,
-    LogOut,
-} from "lucide-react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { Logo } from "./logo";
+import { CreatePlaylistModal } from "@/components/CreatePlaylistModal";
+import { Button } from "@/components/ui/button";
 import {
     Sidebar,
     SidebarContent,
+    SidebarFooter,
     SidebarGroup,
     SidebarGroupContent,
     SidebarGroupLabel,
+    SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarHeader,
-    SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { useUser } from "@/contexts/UserContext";
+import { apiService } from "@/lib/api";
+import {
+    Home,
+    Library,
+    LogOut,
+    Music,
+    Plus,
+    Search,
+    Settings
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Logo } from "./logo";
 
 const navigation = [
     {
@@ -46,17 +48,34 @@ const navigation = [
     },
 ];
 
-const playlists = [
-    { id: "1", name: "Liked Songs", icon: Heart, iconColor: "text-green-500" },
-    { id: "2", name: "Chill Vibes", icon: Music },
-    { id: "3", name: "Workout Mix", icon: Music },
-    { id: "4", name: "Road Trip Hits", icon: Music },
-];
-
 export function AppSidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const { logout } = useUser();
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [playlists, setPlaylists] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchPlaylists = async () => {
+        setLoading(true);
+        try {
+            const data = await apiService.getUserPlaylists();
+            setPlaylists(data);
+        } catch (err) {
+            setPlaylists([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchPlaylists();
+    }, []);
+
+    const handlePlaylistCreated = () => {
+        setShowCreateModal(false);
+        fetchPlaylists();
+    };
 
     const handleLogout = () => {
         logout();
@@ -103,30 +122,36 @@ export function AppSidebar() {
                                 size="sm"
                                 variant="ghost"
                                 className="w-full justify-start text-gray-300 hover:text-white"
+                                onClick={() => setShowCreateModal(true)}
                             >
                                 <Plus className="h-4 w-5 mr-1" />
                                 Create Playlist
                             </Button>
+                            <CreatePlaylistModal open={showCreateModal} onOpenChange={setShowCreateModal} onCreate={handlePlaylistCreated} />
                         </div>
                         <SidebarMenu>
-                            {playlists.map((playlist) => (
-                                <SidebarMenuItem key={playlist.id}>
+                            {loading ? (
+                                <SidebarMenuItem>
+                                    <span className="text-gray-400 px-3 py-2">Loading...</span>
+                                </SidebarMenuItem>
+                            ) : playlists.length === 0 ? (
+                                <SidebarMenuItem>
+                                    <span className="text-gray-400 px-3 py-2">No playlists</span>
+                                </SidebarMenuItem>
+                            ) : playlists.map((playlist) => (
+                                <SidebarMenuItem key={playlist._id}>
                                     <SidebarMenuButton
                                         asChild
                                         isActive={
                                             pathname ===
-                                            `/app/playlist/${playlist.id}`
+                                            `/app/playlist/${playlist._id}`
                                         }
                                     >
                                         <Link
-                                            href={`/app/playlist/${playlist.id}`}
+                                            href={`/app/playlist/${playlist._id}`}
                                             className="flex items-center gap-3 px-3 py-2"
                                         >
-                                            <playlist.icon
-                                                className={`h-4 w-4 ${
-                                                    playlist.iconColor || ""
-                                                }`}
-                                            />
+                                            <Music className="h-4 w-4" />
                                             <span className="text-sm">
                                                 {playlist.name}
                                             </span>

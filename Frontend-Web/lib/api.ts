@@ -125,6 +125,31 @@ class ApiService {
     async getSongUrl(songId: string): Promise<{ url: string }> {
         return this.request<{ url: string }>(`/api/songs/play/${songId}`);
     }
+
+    async addToLikedSongs(songId: string): Promise<any> {
+        return this.request<any>(`/api/songs/like`, {
+            method: "POST",
+            body: JSON.stringify({ songId }),
+        });
+    }
+
+    async addSongToPlaylist(songId: string, playlistId: string): Promise<any> {
+        return this.request<any>(`/api/playlists/${playlistId}/add-song`, {
+            method: "POST",
+            body: JSON.stringify({ songId }),
+        });
+    }
+
+    async createPlaylist(data: { name: string; description?: string; songIds?: string[]; photo?: string }): Promise<any> {
+        return this.request<any>("/api/playlists", {
+            method: "POST",
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getUserPlaylists(): Promise<any[]> {
+        return this.request<any[]>("/api/playlists/my-playlists");
+    }
 }
 
 export const apiService = new ApiService();
