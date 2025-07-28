@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
-import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Play, Pause, Heart, MoreHorizontal, Clock, Download, Share2, Plus, UserPlus } from "lucide-react"
+import { Clock, Download, Heart, MoreHorizontal, Pause, Play, Plus, Share2, UserPlus } from "lucide-react"
 import Image from "next/image"
+import { useParams } from "next/navigation"
+import { useState } from "react"
 
 // Mock data for playlists
 const playlists = {
@@ -175,7 +175,7 @@ const playlists = {
 export default function PlaylistPage() {
   const params = useParams()
   const playlistId = params.id as string
-  const playlist = playlists[playlistId] || playlists["1"] // Fallback to first playlist if not found
+  const playlist = playlists[playlistId as keyof typeof playlists] || playlists["1"] // Fallback to first playlist if not found
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [likedSongs, setLikedSongs] = useState<Record<number, boolean>>(
