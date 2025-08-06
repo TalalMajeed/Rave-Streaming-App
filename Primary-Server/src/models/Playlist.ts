@@ -1,11 +1,10 @@
-import mongoose, { Schema, Document } from "mongoose";
-import { ISong } from "./Song";
+import mongoose, { Document, Schema } from "mongoose";
 import { IUser } from "./User";
 
 export interface IPlaylist extends Document {
     name: string;
     photo: string;
-    songs: ISong[];
+    songs: string[];
     creator: IUser;
 }
 
@@ -22,8 +21,7 @@ const PlaylistSchema: Schema = new Schema(
         },
         songs: [
             {
-                type: Schema.Types.ObjectId,
-                ref: "Song",
+                type: String,
                 required: true,
             },
         ],

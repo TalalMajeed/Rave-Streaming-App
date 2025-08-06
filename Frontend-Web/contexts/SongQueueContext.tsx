@@ -1,15 +1,14 @@
 "use client";
 
-import React, {
+import { apiService, Song } from "@/lib/api";
+import {
     createContext,
-    useContext,
-    useReducer,
     ReactNode,
-    useRef,
+    useContext,
     useEffect,
+    useReducer,
+    useRef,
 } from "react";
-import { Song } from "@/lib/api";
-import { apiService } from "@/lib/api";
 
 // Types
 export interface AudioControls {
@@ -372,6 +371,7 @@ export function SongQueueProvider({ children }: SongQueueProviderProps) {
     // Play song by ID
     const playSongById = async (songId: string, song?: Song) => {
         try {
+            console.log(`Attempting to play song: ${songId}`, song);
             const response = await apiService.getSongUrl(songId);
             setCurrentAudioUrl(response.url);
 
@@ -393,6 +393,8 @@ export function SongQueueProvider({ children }: SongQueueProviderProps) {
             }
         } catch (error) {
             console.error("Error playing song:", error);
+            // Show user-friendly error message
+            alert(`Unable to play this song. It may not be available or has been removed.`);
         }
     };
 

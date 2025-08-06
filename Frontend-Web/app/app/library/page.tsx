@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSongQueue } from "@/contexts/SongQueueContext";
 import { apiService } from "@/lib/api";
 import {
     Clock,
@@ -14,42 +15,18 @@ import {
     Heart,
     List,
     MoreHorizontal,
+    Pause,
     Play,
     Plus,
     Search,
+    Trash2,
 } from "lucide-react";
 import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const likedSongs = [
-    {
-        id: 1,
-        title: "Blinding Lights",
-        artist: "The Weeknd",
-        album: "After Hours",
-        duration: "3:20",
-        dateAdded: "2 days ago",
-        image: "/placeholder.svg?height=64&width=64",
-    },
-    {
-        id: 2,
-        title: "Watermelon Sugar",
-        artist: "Harry Styles",
-        album: "Fine Line",
-        duration: "2:54",
-        dateAdded: "1 week ago",
-        image: "/placeholder.svg?height=64&width=64",
-    },
-    {
-        id: 3,
-        title: "Levitating",
-        artist: "Dua Lipa",
-        album: "Future Nostalgia",
-        duration: "3:23",
-        dateAdded: "2 weeks ago",
-        image: "/placeholder.svg?height=64&width=64",
-    },
-];
+// This will be replaced with real data from API
+const likedSongs = [];
 
 const userPlaylists = [
     {
@@ -138,11 +115,30 @@ const downloadedSongs = [
 ];
 
 export default function LibraryPage() {
-    const [searchQuery, setSearchQuery] = useState("");
-    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-    const [showCreateModal, setShowCreateModal] = useState(false);
     const [playlists, setPlaylists] = useState<any[]>([]);
+    const [likedSongs, setLikedSongs] = useState<any[]>([]);
+    const [likedSongsLoading, setLikedSongsLoading] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [playlistToDelete, setPlaylistToDelete] = useState<any>(null);
+    const [deleting, setDeleting] = useState(false);
+    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const [activeTab, setActiveTab] = useState("playlists");
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const { playSongById, currentSong, state, addToQueue, clearQueue } = useSongQueue();
+
+    // Handle URL parameter for tab
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (tab === 'liked') {
+            setActiveTab('liked');
+        } else {
+            setActiveTab('playlists');
+        }
+    }, [searchParams]);
 
     const fetchPlaylists = async () => {
         setLoading(true);
@@ -156,13 +152,108 @@ export default function LibraryPage() {
         }
     };
 
+    const fetchLikedSongs = async () => {
+        setLikedSongsLoading(true);
+        try {
+            const likedSongIds = await apiService.getLikedSongs();
+            
+            // Fetch song details for each liked song ID
+            const songsWithDetails = await Promise.all(
+                likedSongIds.map(async (songId) => {
+                    try {
+                        const songDetail = await apiService.getSongByWebId(songId);
+                        if (songDetail) {
+                            return {
+                                id: (songDetail as any).webId || (songDetail as any).id || songId,
+                                title: (songDetail as any).name || (songDetail as any).title || 'Unknown Song',
+                                artist: (songDetail as any).artist || 'Unknown Artist',
+                                album: (songDetail as any).album || 'Unknown Album',
+                                duration: (songDetail as any).duration || "0:00",
+                                dateAdded: "Recently",
+                                image: (songDetail as any).image || (songDetail as any).photo || "/placeholder.svg?height=64&width=64",
+                            };
+                        } else {
+                            // Fallback for songs that can't be found
+                            return {
+                                id: songId,
+                                title: 'Song Not Available',
+                                artist: 'Unknown Artist',
+                                album: 'Unknown Album',
+                                duration: "0:00",
+                                dateAdded: "Recently",
+                                image: "/placeholder.svg?height=64&width=64",
+                            };
+                        }
+                    } catch (error) {
+                        console.error(`Error fetching song details for ${songId}:`, error);
+                        return {
+                            id: songId,
+                            title: 'Error Loading Song',
+                            artist: 'Unknown Artist',
+                            album: 'Unknown Album',
+                            duration: "0:00",
+                            dateAdded: "Recently",
+                            image: "/placeholder.svg?height=64&width=64",
+                        };
+                    }
+                })
+            );
+            
+            setLikedSongs(songsWithDetails);
+        } catch (err) {
+            console.error("Error fetching liked songs:", err);
+            setLikedSongs([]);
+        } finally {
+            setLikedSongsLoading(false);
+        }
+    };
+
     useEffect(() => {
         fetchPlaylists();
+        fetchLikedSongs();
+        
+        // Listen for like/unlike events from other components
+        const handleSongLiked = () => {
+            fetchLikedSongs();
+        };
+        
+        window.addEventListener('songLiked', handleSongLiked);
+        window.addEventListener('songUnliked', handleSongLiked);
+        
+        return () => {
+            window.removeEventListener('songLiked', handleSongLiked);
+            window.removeEventListener('songUnliked', handleSongLiked);
+        };
     }, []);
+
+    const handleLikeToggle = async (songId: string) => {
+        try {
+            // Check if song is currently liked
+            const isCurrentlyLiked = likedSongs.some(song => song.id === songId);
+            
+            if (isCurrentlyLiked) {
+                // Unlike the song
+                await apiService.removeFromLikedSongs(songId);
+                window.dispatchEvent(new CustomEvent('songUnliked'));
+            } else {
+                // Like the song
+                await apiService.addToLikedSongs(songId);
+                window.dispatchEvent(new CustomEvent('songLiked'));
+            }
+            
+            // Refresh the liked songs list
+            fetchLikedSongs();
+        } catch (error) {
+            console.error('Error toggling like status:', error);
+            alert('Failed to update like status');
+        }
+    };
 
     const handlePlaylistCreated = () => {
         setShowCreateModal(false);
         fetchPlaylists();
+        // Notify other components that a playlist was created
+        window.dispatchEvent(new CustomEvent('playlistCreated'));
     };
 
     // Placeholder recommended songs
@@ -181,6 +272,31 @@ export default function LibraryPage() {
         // For now, just close modal and reset
         setShowCreateModal(false);
         // Optionally, show a toast/notification
+    };
+
+    const handleDeletePlaylist = async () => {
+        if (!playlistToDelete) return;
+        
+        setDeleting(true);
+        try {
+            await apiService.deletePlaylist(playlistToDelete._id);
+            setShowDeleteDialog(false);
+            setPlaylistToDelete(null);
+            // Refresh the playlist list
+            fetchPlaylists();
+            // Notify other components that a playlist was deleted
+            window.dispatchEvent(new CustomEvent('playlistDeleted'));
+        } catch (error) {
+            console.error("Error deleting playlist:", error);
+            alert("Failed to delete playlist");
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const openDeleteDialog = (playlist: any) => {
+        setPlaylistToDelete(playlist);
+        setShowDeleteDialog(true);
     };
 
     const filteredPlaylists = playlists.filter((playlist) =>
@@ -247,7 +363,14 @@ export default function LibraryPage() {
                 </div>
 
                 {/* Tabs */}
-                <Tabs defaultValue="playlists" className="space-y-6">
+                <Tabs value={activeTab} onValueChange={(value) => {
+                    setActiveTab(value);
+                    if (value === 'liked') {
+                        router.push('/app/library?tab=liked');
+                    } else {
+                        router.push('/app/library');
+                    }
+                }} className="space-y-6">
                     <TabsList className="bg-rave-dark-card border-rave-dark-border">
                         <TabsTrigger
                             value="playlists"
@@ -296,6 +419,7 @@ export default function LibraryPage() {
                                     <Card
                                         key={playlist._id}
                                         className="bg-rave-dark-card border-rave-dark-border hover:bg-rave-dark-surface transition-all duration-200 cursor-pointer group"
+                                        onClick={() => router.push(`/app/playlist/${playlist._id}`)}
                                     >
                                         <CardContent className="p-4">
                                             <div className="relative mb-4">
@@ -311,6 +435,17 @@ export default function LibraryPage() {
                                                     className="absolute bottom-2 right-2 bg-rave-accent hover:bg-rave-accent-hover rounded-full w-12 h-12 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                                                 >
                                                     <Play className="h-5 w-5" />
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    className="absolute top-2 right-2 rounded-full w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        openDeleteDialog(playlist);
+                                                    }}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </div>
                                             <h3 className="font-semibold text-white mb-1 truncate">
@@ -334,6 +469,7 @@ export default function LibraryPage() {
                                     <Card
                                         key={playlist._id}
                                         className="bg-rave-dark-card border-rave-dark-border hover:bg-rave-dark-surface transition-colors group"
+                                        onClick={() => router.push(`/app/playlist/${playlist._id}`)}
                                     >
                                         <CardContent className="p-4">
                                             <div className="flex items-center gap-4">
@@ -356,6 +492,26 @@ export default function LibraryPage() {
                                                         {playlist.songs?.length || 0} songs
                                                     </p>
                                                 </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <Play className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            openDeleteDialog(playlist);
+                                                        }}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -375,17 +531,80 @@ export default function LibraryPage() {
                                     Liked Songs
                                 </h2>
                                 <p className="text-gray-400">
-                                    {likedSongs.length} songs
+                                    {likedSongsLoading ? "Loading..." : `${likedSongs.length} songs`}
                                 </p>
                             </div>
-                            <Button className="ml-auto bg-rave-accent hover:bg-rave-accent-hover">
-                                <Play className="h-4 w-4 mr-2" />
-                                Play All
-                            </Button>
+                            {likedSongs.length > 0 && (
+                                <Button 
+                                    className="ml-auto bg-rave-accent hover:bg-rave-accent-hover"
+                                    onClick={() => {
+                                        if (likedSongs.length > 0) {
+                                            clearQueue();
+                                            likedSongs.forEach((song) => {
+                                                addToQueue({
+                                                    id: song.id,
+                                                    name: song.title,
+                                                    artist: song.artist,
+                                                    album: song.album,
+                                                    image: song.image
+                                                });
+                                            });
+                                            const firstSong = likedSongs[0];
+                                            playSongById(firstSong.id, {
+                                                id: firstSong.id,
+                                                name: firstSong.title,
+                                                artist: firstSong.artist,
+                                                album: firstSong.album,
+                                                image: firstSong.image
+                                            });
+                                        }
+                                    }}
+                                >
+                                    <Play className="h-4 w-4 mr-2" />
+                                    Play All
+                                </Button>
+                            )}
                         </div>
 
-                        <div className="space-y-2">
-                            {likedSongs.map((song, index) => (
+                        {likedSongsLoading && (
+                            <div className="space-y-2">
+                                {[...Array(5)].map((_, index) => (
+                                    <Card
+                                        key={index}
+                                        className="bg-rave-dark-card border-rave-dark-border"
+                                    >
+                                        <CardContent className="p-4">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-6 h-4 bg-gray-700 rounded animate-pulse" />
+                                                <div className="w-12 h-12 bg-gray-700 rounded-md animate-pulse" />
+                                                <div className="flex-1 space-y-2">
+                                                    <div className="h-4 bg-gray-700 rounded animate-pulse" />
+                                                    <div className="h-3 bg-gray-700 rounded animate-pulse w-2/3" />
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
+                        {!likedSongsLoading && likedSongs.length === 0 && (
+                            <div className="text-center py-12">
+                                <Heart className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+                                <h3 className="text-xl font-semibold text-white mb-2">No liked songs yet</h3>
+                                <p className="text-gray-400 mb-6">
+                                    Start liking songs to see them here
+                                </p>
+                                <Button 
+                                    className="bg-rave-accent hover:bg-rave-accent-hover"
+                                    onClick={() => window.location.href = '/app/home'}
+                                >
+                                    Discover Music
+                                </Button>
+                            </div>
+                        )}
+                        {!likedSongsLoading && likedSongs.length > 0 && (
+                            <div className="space-y-2">
+                                {likedSongs.map((song, index) => (
                                 <Card
                                     key={song.id}
                                     className="bg-rave-dark-card border-rave-dark-border hover:bg-rave-dark-surface transition-colors group"
@@ -424,7 +643,26 @@ export default function LibraryPage() {
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
+                                                    className="text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    onClick={() => playSongById(song.id, {
+                                                        id: song.id,
+                                                        name: song.title,
+                                                        artist: song.artist,
+                                                        album: song.album,
+                                                        image: song.image
+                                                    })}
+                                                >
+                                                    {currentSong?.id === song.id && state.controls.isPlaying ? (
+                                                        <Pause className="h-4 w-4" />
+                                                    ) : (
+                                                        <Play className="h-4 w-4" />
+                                                    )}
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
                                                     className="text-green-500 hover:text-green-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    onClick={() => handleLikeToggle(song.id)}
                                                 >
                                                     <Heart className="h-4 w-4 fill-current" />
                                                 </Button>
@@ -444,6 +682,7 @@ export default function LibraryPage() {
                                 </Card>
                             ))}
                         </div>
+                        )}
                     </TabsContent>
 
                     {/* Recently Played Tab */}
@@ -605,6 +844,39 @@ export default function LibraryPage() {
                     </TabsContent>
                 </Tabs>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            {showDeleteDialog && playlistToDelete && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-rave-dark-card border border-rave-dark-border rounded-lg p-6 max-w-md w-full mx-4">
+                        <h3 className="text-xl font-semibold text-white mb-4">
+                            Delete Playlist
+                        </h3>
+                        <p className="text-gray-400 mb-6">
+                            Are you sure you want to delete "{playlistToDelete.name}"? This action cannot be undone.
+                        </p>
+                        <div className="flex gap-3 justify-end">
+                            <Button
+                                variant="ghost"
+                                onClick={() => {
+                                    setShowDeleteDialog(false);
+                                    setPlaylistToDelete(null);
+                                }}
+                                disabled={deleting}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={handleDeletePlaylist}
+                                disabled={deleting}
+                            >
+                                {deleting ? "Deleting..." : "Delete"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

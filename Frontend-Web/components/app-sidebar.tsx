@@ -17,6 +17,7 @@ import {
 import { useUser } from "@/contexts/UserContext";
 import { apiService } from "@/lib/api";
 import {
+    Heart,
     Home,
     Library,
     LogOut,
@@ -55,6 +56,7 @@ export function AppSidebar() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [playlists, setPlaylists] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [likedSongsCount, setLikedSongsCount] = useState(0);
 
     const fetchPlaylists = async () => {
         setLoading(true);
@@ -68,13 +70,61 @@ export function AppSidebar() {
         }
     };
 
+    const fetchLikedSongsCount = async () => {
+        try {
+            const likedSongs = await apiService.getLikedSongs();
+            setLikedSongsCount(likedSongs.length);
+        } catch (err) {
+            setLikedSongsCount(0);
+        }
+    };
+
     useEffect(() => {
         fetchPlaylists();
+        fetchLikedSongsCount();
+    }, []);
+
+    // Refresh playlists when navigating to library page
+    useEffect(() => {
+        if (pathname === "/app/library") {
+            fetchPlaylists();
+            fetchLikedSongsCount();
+        }
+    }, [pathname]);
+
+    // Listen for playlist deletion events and like/unlike events
+    useEffect(() => {
+        const handlePlaylistDeleted = () => {
+            fetchPlaylists();
+        };
+
+        const handlePlaylistCreated = () => {
+            fetchPlaylists();
+        };
+
+        const handleSongLiked = () => {
+            fetchLikedSongsCount();
+        };
+
+        const handleSongUnliked = () => {
+            fetchLikedSongsCount();
+        };
+
+        window.addEventListener('playlistDeleted', handlePlaylistDeleted);
+        window.addEventListener('playlistCreated', handlePlaylistCreated);
+        window.addEventListener('songLiked', handleSongLiked);
+        window.addEventListener('songUnliked', handleSongUnliked);
+        
+        return () => {
+            window.removeEventListener('playlistDeleted', handlePlaylistDeleted);
+            window.removeEventListener('playlistCreated', handlePlaylistCreated);
+            window.removeEventListener('songLiked', handleSongLiked);
+            window.removeEventListener('songUnliked', handleSongUnliked);
+        };
     }, []);
 
     const handlePlaylistCreated = () => {
         setShowCreateModal(false);
-        fetchPlaylists();
     };
 
     const handleLogout = () => {
@@ -130,6 +180,30 @@ export function AppSidebar() {
                             <CreatePlaylistModal open={showCreateModal} onOpenChange={setShowCreateModal} onCreate={handlePlaylistCreated} />
                         </div>
                         <SidebarMenu>
+                            {/* Liked Songs - Special Playlist */}
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={pathname === "/app/library?tab=liked"}
+                                    className={pathname === "/app/library?tab=liked" ? "bg-red-500/10 border border-red-500/20" : ""}
+                                >
+                                    <Link
+                                        href="/app/library?tab=liked"
+                                        className="flex items-center gap-3 px-3 py-2"
+                                    >
+                                        <Heart className="h-4 w-4 text-red-500" />
+                                        <span className="text-sm flex-1">
+                                            Liked Songs
+                                        </span>
+                                        {likedSongsCount > 0 && (
+                                            <span className="text-xs text-gray-400">
+                                                {likedSongsCount}
+                                            </span>
+                                        )}
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            
                             {loading ? (
                                 <SidebarMenuItem>
                                     <span className="text-gray-400 px-3 py-2">Loading...</span>

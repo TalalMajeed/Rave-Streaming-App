@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { PlaylistService } from "../services/playlist.service";
 import { auth } from "../middleware/auth.middleware";
+import { PlaylistService } from "../services/playlist.service";
 
 const router = Router();
 const playlistService = new PlaylistService();
@@ -61,11 +61,11 @@ router.patch("/:id", auth, async (req, res) => {
 // Delete playlist
 router.delete("/:id", auth, async (req, res) => {
     try {
-        const playlist = await playlistService.deletePlaylist(req.params.id);
+        const playlist = await playlistService.deletePlaylist(req.params.id, req.user!._id);
         if (!playlist) {
-            return res.status(404).json({ error: "Playlist not found" });
+            return res.status(404).json({ error: "Playlist not found or you don't have permission to delete it" });
         }
-        res.json(playlist);
+        res.json({ message: "Playlist deleted successfully" });
     } catch (error) {
         res.status(500).json({ error: (error as Error).message });
     }
