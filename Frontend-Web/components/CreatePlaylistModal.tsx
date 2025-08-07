@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { apiService } from "@/lib/api";
+import { Heart } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
@@ -27,15 +28,8 @@ export function CreatePlaylistModal({ open, onOpenChange, onCreate }: {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
-
-  // Recommended songs (static, with photo)
-  const recommendedSongs = [
-    { _id: "101", name: "Recommended Song 1", artist: "Artist A", photo: "/placeholder1.svg" },
-    { _id: "102", name: "Recommended Song 2", artist: "Artist B", photo: "/placeholder2.svg" },
-    { _id: "103", name: "Recommended Song 3", artist: "Artist C", photo: "/placeholder3.svg" },
-    { _id: "104", name: "Recommended Song 4", artist: "Artist D", photo: "/placeholder4.svg" },
-    { _id: "105", name: "Recommended Song 5", artist: "Artist E", photo: "/placeholder5.svg" },
-  ];
+  const [likedSongs, setLikedSongs] = useState<Record<string, boolean>>({});
+  const [likeLoading, setLikeLoading] = useState<Record<string, boolean>>({});
 
   // Fetch songs when search changes
   useEffect(() => {
@@ -49,19 +43,77 @@ export function CreatePlaylistModal({ open, onOpenChange, onCreate }: {
     apiService.searchSongs(search.trim())
       .then((results) => {
         console.log("Search Results:", results); // Debug: check song IDs
+        console.log("First song structure:", results[0]); // Debug: check song structure
+        console.log("Number of search results:", results.length);
         setSearchResults(results);
+        // Check which songs are already liked
+        checkLikedStatus(results);
       })
       .catch((err) => {
+        console.error("Search error:", err);
         setSearchError("Failed to fetch songs");
         setSearchResults([]);
       })
       .finally(() => setSearchLoading(false));
   }, [search]);
 
+  const checkLikedStatus = async (songs: any[]) => {
+    const newLikedState: Record<string, boolean> = {};
+    for (const song of songs) {
+      const songId = song.id || song._id;
+      if (songId) {
+        try {
+          const response = await apiService.isSongLiked(String(songId));
+          newLikedState[songId] = response.isLiked;
+        } catch (error) {
+          console.error(`Error checking like status for song ${songId}:`, error);
+          newLikedState[songId] = false;
+        }
+      }
+    }
+    setLikedSongs(prev => ({ ...prev, ...newLikedState }));
+  };
+
+  const handleLikeToggle = async (songId: string) => {
+    console.log("Like button clicked for song ID:", songId);
+    console.log("Current liked state:", likedSongs[songId]);
+    console.log("Auth token:", localStorage.getItem("token"));
+    
+    setLikeLoading(prev => ({ ...prev, [songId]: true }));
+    
+    try {
+      if (likedSongs[songId]) {
+        // Unlike the song
+        console.log("Attempting to unlike song:", songId);
+        await apiService.removeFromLikedSongs(songId);
+        setLikedSongs(prev => ({ ...prev, [songId]: false }));
+        console.log("Song unliked successfully");
+        // Notify other components that a song was unliked
+        window.dispatchEvent(new CustomEvent('songUnliked'));
+      } else {
+        // Like the song
+        console.log("Attempting to like song:", songId);
+        await apiService.addToLikedSongs(songId);
+        setLikedSongs(prev => ({ ...prev, [songId]: true }));
+        console.log("Song liked successfully");
+        // Notify other components that a song was liked
+        window.dispatchEvent(new CustomEvent('songLiked'));
+      }
+    } catch (error) {
+      console.error(`Error toggling like for song ${songId}:`, error);
+      // You might want to show a toast notification here
+    } finally {
+      setLikeLoading(prev => ({ ...prev, [songId]: false }));
+    }
+  };
+
   const handleSongToggle = (id: string) => {
-    setSelectedSongs((prev) =>
-      prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
-    );
+    console.log("Toggling song with ID:", id);
+    setSelectedSongs((prev) => {
+      const newSelection = prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id];
+      console.log("Updated song selection:", newSelection);
+      return newSelection;
+    });
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,21 +131,32 @@ export function CreatePlaylistModal({ open, onOpenChange, onCreate }: {
     setLoading(true);
     // Determine which image to use
     let finalCover = coverImage;
-    let allSongs = search.trim() ? searchResults : recommendedSongs;
+    let allSongs = search.trim() ? searchResults : []; // Removed recommendedSongs
     if (!finalCover && selectedSongs.length > 0) {
-      const firstSong = allSongs.find(song => song._id === selectedSongs[0]);
-      finalCover = firstSong?.photo || "";
+      const firstSong = allSongs.find(song => song.id === selectedSongs[0] || song._id === selectedSongs[0]);
+      finalCover = firstSong?.photo || firstSong?.image || "";
     }
     if (!finalCover) {
       finalCover = "/placeholder.svg";
     }
+    
+
+    
     try {
-      await apiService.createPlaylist({
+      // Simply use the selectedSongs array directly, ensuring all items are strings
+      const finalSongsArray = selectedSongs.map(songId => String(songId));
+      
+      const playlistData = {
         name: playlistName,
         description: playlistDescription,
-        songIds: selectedSongs.map(String),
+        songs: finalSongsArray,
         photo: finalCover,
-      });
+      };
+      
+      const result = await apiService.createPlaylist(playlistData);
+      
+      console.log("Playlist created successfully:", result);
+      
       if (onCreate) {
         onCreate({
           name: playlistName,
@@ -101,6 +164,10 @@ export function CreatePlaylistModal({ open, onOpenChange, onCreate }: {
           songIds: selectedSongs.map(Number),
         });
       }
+      
+      // Notify other components that a playlist was created
+      window.dispatchEvent(new CustomEvent('playlistCreated'));
+      
       setPlaylistName("");
       setPlaylistDescription("");
       setSelectedSongs([]);
@@ -108,6 +175,7 @@ export function CreatePlaylistModal({ open, onOpenChange, onCreate }: {
       onOpenChange(false);
       alert("Playlist created successfully!");
     } catch (err: any) {
+      console.error("Error creating playlist:", err);
       alert(err.message || "Failed to create playlist");
     } finally {
       setLoading(false);
@@ -211,28 +279,52 @@ export function CreatePlaylistModal({ open, onOpenChange, onCreate }: {
               searchResults.length > 0 ? (
                 <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
                   {searchResults.map((song) => {
-                    const selected = selectedSongs.includes(String(song.id));
+                    const songId = song.id || song._id;
+                    const selected = selectedSongs.includes(String(songId));
+                    const isLiked = likedSongs[songId] || false;
                     return (
-                      <label
-                        key={song.id}
-                        className={`flex items-center gap-3 cursor-pointer text-base rounded-lg px-2 py-2 transition-colors hover:bg-rave-dark-bg/60 ${selected ? 'bg-rave-accent/10 border border-rave-accent' : ''}`}
+                      <div
+                        key={songId}
+                        className={`flex items-center gap-3 text-base rounded-lg px-2 py-2 transition-colors hover:bg-rave-dark-bg/60 ${selected ? 'bg-rave-accent/10 border border-rave-accent' : ''}`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={() => handleSongToggle(String(song.id))}
-                          className="accent-rave-accent scale-125"
-                        />
-                        <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-rave-dark-surface border border-rave-dark-border relative">
-                          <img src={song.image} alt={song.name} className="object-cover w-full h-full" />
+                        <label className="flex items-center gap-3 cursor-pointer flex-1">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => handleSongToggle(String(songId))}
+                            className="accent-rave-accent scale-125"
+                          />
+                          <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-rave-dark-surface border border-rave-dark-border relative">
+                            <img src={song.image || song.photo} alt={song.name} className="object-cover w-full h-full" />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-white font-medium truncate">{song.name}</span>
+                            <span className="text-gray-400 text-xs truncate">{song.album}</span>
+                            <span className="text-gray-500 text-xs truncate">{song.artist}</span>
+                          </div>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          {selected && <span className="text-xs px-2 py-0.5 rounded-full bg-rave-accent text-white">Selected</span>}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              console.log("Button clicked for song:", song.name);
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleLikeToggle(String(songId));
+                            }}
+                            disabled={likeLoading[songId]}
+                            className="text-rave-accent hover:text-rave-accent/80 transition-colors p-1 rounded-full hover:bg-rave-accent/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={isLiked ? "Remove from liked songs" : "Add to liked songs"}
+                          >
+                            {likeLoading[songId] ? (
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-rave-accent border-t-transparent" />
+                            ) : (
+                              <Heart className={`h-4 w-4 ${isLiked ? 'fill-rave-accent' : ''}`} />
+                            )}
+                          </button>
                         </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-white font-medium truncate">{song.name}</span>
-                          <span className="text-gray-400 text-xs truncate">{song.album}</span>
-                          <span className="text-gray-500 text-xs truncate">{song.artist}</span>
-                        </div>
-                        {selected && <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-rave-accent text-white">Selected</span>}
-                      </label>
+                      </div>
                     );
                   })}
                 </div>
@@ -241,30 +333,10 @@ export function CreatePlaylistModal({ open, onOpenChange, onCreate }: {
               )
             ) : (
               <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
-                {recommendedSongs.map((song) => {
-                  const selected = selectedSongs.includes(String(song._id));
-                  return (
-                    <label
-                      key={song._id}
-                      className={`flex items-center gap-3 cursor-pointer text-base rounded-lg px-2 py-2 transition-colors hover:bg-rave-dark-bg/60 ${selected ? 'bg-rave-accent/10 border border-rave-accent' : ''}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={() => handleSongToggle(String(song._id))}
-                        className="accent-rave-accent scale-125"
-                      />
-                      <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-rave-dark-surface border border-rave-dark-border relative">
-                        <img src={song.photo} alt={song.name} className="object-cover w-full h-full" />
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-white font-medium truncate">{song.name}</span>
-                        <span className="text-gray-400 text-xs truncate">{song.artist}</span>
-                      </div>
-                      {selected && <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-rave-accent text-white">Selected</span>}
-                    </label>
-                  );
-                })}
+                <div className="text-center py-8">
+                  <p className="text-gray-400 mb-4">Search for songs to add to your playlist</p>
+                  <p className="text-gray-500 text-sm">Type in the search box above to find your favorite songs</p>
+                </div>
               </div>
             )}
           </div>

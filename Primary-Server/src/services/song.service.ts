@@ -1,6 +1,6 @@
-import Song, { ISong } from "../models/Song";
 import fetch from "node-fetch";
 import pkg from "node-forge";
+import Song, { ISong } from "../models/Song";
 const { cipher, util } = pkg;
 
 const key = "38346591";
@@ -23,6 +23,56 @@ export class SongService {
 
     async getSongById(id: string): Promise<ISong | null> {
         return Song.findById(id);
+    }
+
+    async getSongByWebId(webId: string): Promise<ISong | null> {
+        try {
+            // First try to find the song in the database
+            const song = await Song.findOne({ webId: webId });
+            if (song) {
+                return song;
+            }
+
+            // If not found in database, fetch from external API
+            const url = `https://www.jiosaavn.com/api.php?__call=song.getDetails&cc=in&_marker=0%3F_marker%3D0&_format=json&pids=${webId}`;
+            const response = await fetch(encodeURI(url));
+            const data: any = await response.json();
+
+            if (!data[webId]) {
+                return null;
+            }
+
+            const songData = data[webId];
+            const songDetails = {
+                name: songData.song.replace(/&quot;/g, '"').replace(/&amp;/g, "&"),
+                artist: songData.primary_artists.replace(/&quot;/g, '"').replace(/&amp;/g, "&"),
+                album: songData.album.replace(/&quot;/g, '"').replace(/&amp;/g, "&"),
+                image: songData.image.replace("50x50", "250x250"),
+                webId: webId,
+            };
+
+            // Save the song to database for future use
+            await this.saveWebSongToDatabase({
+                id: webId,
+                name: songDetails.name,
+                artist: songDetails.artist,
+                album: songDetails.album,
+                image: songDetails.image,
+                duration: songData.duration || "0:00",
+            });
+
+            // Return the song details
+            return {
+                _id: webId, // Use webId as temporary _id
+                name: songDetails.name,
+                artist: songDetails.artist,
+                photo: songDetails.image,
+                webId: webId,
+            } as ISong;
+        } catch (error) {
+            console.error(`Error fetching song by webId ${webId}:`, error);
+            return null;
+        }
     }
 
     async updateSong(
@@ -117,22 +167,38 @@ export class SongService {
         const url = `https://www.jiosaavn.com/api.php?__call=song.getDetails&cc=in&_marker=0%3F_marker%3D0&_format=json&pids=${songId}`;
 
         try {
+            console.log(`Attempting to fetch song URL for ID: ${songId}`);
             const response = await fetch(encodeURI(url));
+            
+            if (!response.ok) {
+                console.error(`JioSaavn API returned status: ${response.status}`);
+                throw new Error(`JioSaavn API error: ${response.status}`);
+            }
+            
             const data: any = await response.json();
+            console.log(`JioSaavn API response for ${songId}:`, data);
 
-            if (!data[songId]?.encrypted_media_url) {
-                throw new Error("Song not found");
+            if (!data[songId]) {
+                console.error(`Song ${songId} not found in JioSaavn API response`);
+                throw new Error("Song not found in JioSaavn");
+            }
+
+            if (!data[songId].encrypted_media_url) {
+                console.error(`Song ${songId} has no encrypted media URL`);
+                throw new Error("Song media URL not available");
             }
 
             const encryptedUrl = data[songId].encrypted_media_url;
             const decryptedUrl = this.decryptUrl(encryptedUrl);
+
+            console.log(`Successfully decrypted URL for song ${songId}`);
 
             // Save the media URL to the corresponding song document if it exists
             await this.updateSongMediaUrl(songId, decryptedUrl);
 
             return decryptedUrl;
         } catch (error) {
-            console.error("Error getting JioSaavn song URL:", error);
+            console.error(`Error getting JioSaavn song URL for ${songId}:`, error);
             throw error;
         }
     }

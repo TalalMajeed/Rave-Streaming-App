@@ -1,5 +1,4 @@
 import Playlist, { IPlaylist } from "../models/Playlist";
-import { IUser } from "../models/User";
 
 export class PlaylistService {
     async createPlaylist(playlistData: {
@@ -14,13 +13,11 @@ export class PlaylistService {
 
     async getPlaylistById(id: string): Promise<IPlaylist | null> {
         return Playlist.findById(id)
-            .populate("songs")
             .populate("creator", "name email");
     }
 
     async getUserPlaylists(userId: string): Promise<IPlaylist[]> {
         return Playlist.find({ creator: userId })
-            .populate("songs")
             .populate("creator", "name email");
     }
 
@@ -33,7 +30,14 @@ export class PlaylistService {
             .populate("creator", "name email");
     }
 
-    async deletePlaylist(id: string): Promise<IPlaylist | null> {
+    async deletePlaylist(id: string, userId: string): Promise<IPlaylist | null> {
+        // First check if the playlist exists and belongs to the user
+        const playlist = await Playlist.findOne({ _id: id, creator: userId });
+        if (!playlist) {
+            return null;
+        }
+        
+        // Delete the playlist
         return Playlist.findByIdAndDelete(id);
     }
 

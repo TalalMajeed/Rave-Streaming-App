@@ -33,6 +33,8 @@ export default function AppPage() {
     const [loading, setLoading] = useState(false);
     const [debouncedQuery, setDebouncedQuery] = useState("");
     const [isTyping, setIsTyping] = useState(false);
+    const [likedSongs, setLikedSongs] = useState<Record<string, boolean>>({});
+    const [likeLoading, setLikeLoading] = useState<Record<string, boolean>>({});
     const { playSongById, currentSong, state } = useSongQueue();
     const router = useRouter();
 
@@ -58,6 +60,8 @@ export default function AppPage() {
         try {
             const results = await apiService.searchSongs(query);
             setSongs(results);
+            // Check which songs are already liked
+            checkLikedStatus(results);
         } catch (error) {
             console.error("Error fetching songs:", error);
             setSongs([]);
@@ -69,6 +73,43 @@ export default function AppPage() {
     useEffect(() => {
         fetchSongs(debouncedQuery);
     }, [debouncedQuery, fetchSongs]);
+
+    // Check liked status for songs
+    const checkLikedStatus = async (songs: Song[]) => {
+        const newLikedState: Record<string, boolean> = {};
+        for (const song of songs) {
+            try {
+                const response = await apiService.isSongLiked(song.id);
+                newLikedState[song.id] = response.isLiked;
+            } catch (error) {
+                console.error(`Error checking like status for song ${song.id}:`, error);
+                newLikedState[song.id] = false;
+            }
+        }
+        setLikedSongs(prev => ({ ...prev, ...newLikedState }));
+    };
+
+    const handleLikeToggle = async (songId: string) => {
+        setLikeLoading(prev => ({ ...prev, [songId]: true }));
+        
+        try {
+            if (likedSongs[songId]) {
+                // Unlike the song
+                await apiService.removeFromLikedSongs(songId);
+                setLikedSongs(prev => ({ ...prev, [songId]: false }));
+                window.dispatchEvent(new CustomEvent('songUnliked'));
+            } else {
+                // Like the song
+                await apiService.addToLikedSongs(songId);
+                setLikedSongs(prev => ({ ...prev, [songId]: true }));
+                window.dispatchEvent(new CustomEvent('songLiked'));
+            }
+        } catch (error) {
+            console.error(`Error toggling like for song ${songId}:`, error);
+        } finally {
+            setLikeLoading(prev => ({ ...prev, [songId]: false }));
+        }
+    };
 
     return (
         <div className="p-6">
@@ -136,8 +177,14 @@ export default function AppPage() {
                                                     size="sm"
                                                     variant="ghost"
                                                     className="text-gray-400 hover:text-white"
+                                                    onClick={() => handleLikeToggle(song.id)}
+                                                    disabled={likeLoading[song.id]}
                                                 >
-                                                    <Heart className="h-4 w-4" />
+                                                    {likeLoading[song.id] ? (
+                                                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+                                                    ) : (
+                                                        <Heart className={`h-4 w-4 ${likedSongs[song.id] ? 'fill-red-500 text-red-500' : ''}`} />
+                                                    )}
                                                 </Button>
                                                 <Button
                                                     size="sm"

@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 
 export interface RegisterData {
     name: string;
@@ -49,6 +49,8 @@ class ApiService {
         const url = `${this.baseUrl}${endpoint}`;
         const token = this.getAuthToken();
 
+        console.log("API Request:", url, options.method || "GET");
+
         const config: RequestInit = {
             headers: {
                 "Content-Type": "application/json",
@@ -60,9 +62,11 @@ class ApiService {
 
         try {
             const response = await fetch(url, config);
+            console.log("API Response:", response.status, response.statusText);
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
+                console.log("API Error:", errorData.error || errorData);
 
                 // Handle token expiration
                 if (response.status === 401) {
@@ -76,8 +80,11 @@ class ApiService {
                 );
             }
 
-            return await response.json();
+            const data = await response.json();
+            console.log("API Success:", data);
+            return data;
         } catch (error) {
+            console.log("API Request Error:", error);
             if (error instanceof Error) {
                 throw error;
             }
@@ -126,11 +133,35 @@ class ApiService {
         return this.request<{ url: string }>(`/api/songs/play/${songId}`);
     }
 
+    async getSongByWebId(webId: string): Promise<Song> {
+        return this.request<Song>(`/api/songs/web/${webId}`);
+    }
+
     async addToLikedSongs(songId: string): Promise<any> {
-        return this.request<any>(`/api/songs/like`, {
+        console.log("API: Adding song to liked songs:", songId);
+        const result = await this.request<any>(`/api/songs/like`, {
             method: "POST",
             body: JSON.stringify({ songId }),
         });
+        console.log("API: Add to liked songs result:", result);
+        return result;
+    }
+
+    async removeFromLikedSongs(songId: string): Promise<any> {
+        console.log("API: Removing song from liked songs:", songId);
+        const result = await this.request<any>(`/api/songs/like/${songId}`, {
+            method: "DELETE",
+        });
+        console.log("API: Remove from liked songs result:", result);
+        return result;
+    }
+
+    async getLikedSongs(): Promise<string[]> {
+        return this.request<string[]>("/api/songs/liked");
+    }
+
+    async isSongLiked(songId: string): Promise<{ isLiked: boolean }> {
+        return this.request<{ isLiked: boolean }>(`/api/songs/liked/${songId}`);
     }
 
     async addSongToPlaylist(songId: string, playlistId: string): Promise<any> {
@@ -140,7 +171,12 @@ class ApiService {
         });
     }
 
-    async createPlaylist(data: { name: string; description?: string; songIds?: string[]; photo?: string }): Promise<any> {
+    async createPlaylist(data: { name: string; description?: string; songs?: string[]; photo?: string }): Promise<any> {
+        console.log("API Service - createPlaylist called with:", data);
+        console.log("API Service - songs array:", data.songs);
+        console.log("API Service - songs type:", typeof data.songs);
+        console.log("API Service - songs JSON:", JSON.stringify(data.songs));
+        
         return this.request<any>("/api/playlists", {
             method: "POST",
             body: JSON.stringify(data),
@@ -149,6 +185,16 @@ class ApiService {
 
     async getUserPlaylists(): Promise<any[]> {
         return this.request<any[]>("/api/playlists/my-playlists");
+    }
+
+    async getPlaylist(playlistId: string): Promise<any> {
+        return this.request<any>(`/api/playlists/${playlistId}`);
+    }
+
+    async deletePlaylist(playlistId: string): Promise<any> {
+        return this.request<any>(`/api/playlists/${playlistId}`, {
+            method: "DELETE",
+        });
     }
 }
 

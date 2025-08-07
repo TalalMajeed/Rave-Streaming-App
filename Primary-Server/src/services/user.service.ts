@@ -1,5 +1,5 @@
-import User, { IUser } from "../models/User";
 import jwt from "jsonwebtoken";
+import User, { IUser } from "../models/User";
 
 export class UserService {
     async createUser(userData: {
@@ -51,5 +51,31 @@ export class UserService {
 
     async deleteUser(id: string): Promise<IUser | null> {
         return User.findByIdAndDelete(id);
+    }
+
+    async addToLikedSongs(userId: string, songId: string): Promise<IUser | null> {
+        return User.findByIdAndUpdate(
+            userId,
+            { $addToSet: { likedSongs: songId } },
+            { new: true }
+        );
+    }
+
+    async removeFromLikedSongs(userId: string, songId: string): Promise<IUser | null> {
+        return User.findByIdAndUpdate(
+            userId,
+            { $pull: { likedSongs: songId } },
+            { new: true }
+        );
+    }
+
+    async getLikedSongs(userId: string): Promise<string[]> {
+        const user = await User.findById(userId);
+        return user?.likedSongs || [];
+    }
+
+    async isSongLiked(userId: string, songId: string): Promise<boolean> {
+        const user = await User.findById(userId);
+        return user?.likedSongs.includes(songId) || false;
     }
 }

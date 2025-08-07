@@ -1,10 +1,11 @@
-import mongoose, { Schema, Document } from "mongoose";
 import bcrypt from "bcryptjs";
+import mongoose, { Document, Schema } from "mongoose";
 
 export interface IUser extends Document {
     name: string;
     email: string;
     password: string;
+    likedSongs: string[];
     comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -27,6 +28,12 @@ const UserSchema: Schema = new Schema(
             required: true,
             minlength: 6,
         },
+        likedSongs: [
+            {
+                type: String,
+                default: [],
+            },
+        ],
     },
     {
         timestamps: true,
